@@ -6,6 +6,7 @@
     <title>備忘錄 Web</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen p-4 text-gray-800">
 
@@ -222,72 +223,70 @@
                     form.value = { name: "", subName: "", content: "", remark: "" };
                 };
 
-                // 📥 CSV 匯入邏輯 (純前端解析)
-                const handleImportCSV = (event) => {
-                    const file = event.target.files[0];
-                    if (!file) return;
+// 📥 升級版：CSV 匯入邏輯 (完美相容 Excel 換行與特殊符號)
+const handleImportCSV = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
 
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const text = e.target.result;
-                        const lines = text.split("\n");
-                        const newItems = [];
-                        
-                        // 略過第一行 Header，遍歷每一行
-                        for (let i = 1; i < lines.length; i++) {
-                            const line = lines[i].trim();
-                            if (!line) continue;
+    // 使用 PapaParse 進行深度解析
+    Papa.parse(file, {
+        header: true,         // 自動將第一行欄位名稱 (id, name, subName...) 對應為物件 Key
+        skipEmptyLines: true, // 自動跳過空白行
+        dynamicTyping: true,  // 自動將 id 轉為數字數字型態
+        encoding: "UTF-8",
+        complete: (results) => {
+            const data = results.data;
+            
+            // 將資料標準化，確保欄位安全無缺
+            const verifiedItems = data.map((row, index) => ({
+                id: row.id || index + 1,
+                name: row.name ? String(row.name).trim() : "",
+                subName: row.subName ? String(row.subName).trim() : "",
+                content: row.content ? String(row.content).trim() : "",
+                remark: row.remark ? String(row.remark).trim() : ""
+            })).filter(item => item.name || item.subName || item.content); // 過濾掉完全空白的列
 
-                            // 簡易 CSV 逗號切割 (若欄位內有逗號建議用 PapaParse 套件)
-                            const cols = line.split(",");
-                            if (cols.length >= 4) {
-                                newItems.push({
-                                    id: parseInt(cols[0]) || i,
-                                    name: cols[1] || "",
-                                    subName: cols[2] || "",
-                                    content: cols[3] || "",
-                                    remark: cols[4] || ""
-                                });
-                            }
-                        }
-                        
-                        if (newItems.length > 0) {
-                            if (confirm(`檢查到 ${newItems.length} 筆資料，是否覆蓋現有資料庫？`)) {
-                                rawItems.value = newItems;
-                                alert("📥 資料庫匯入成功！");
-                            }
-                        } else {
-                            alert("❌ 找不到有效的資料結構，請確認 CSV 格式。");
-                        }
-                    };
-                    reader.readAsText(file, "UTF-8");
-                    event.target.value = ""; // 清空 input 以便重複觸發
-                };
+            if (verifiedItems.length > 0) {
+                if (confirm(`檢查到 ${verifiedItems.length} 筆資料，是否覆蓋現有資料庫？`)) {
+                    rawItems.value = verifiedItems;
+                    alert("📥 資料庫匯入成功！");
+                }
+            } else {
+                alert("❌ 找不到有效的資料結構，請確認 CSV 標頭欄位是否為: id, name, subName, content, remark");
+            }
+        },
+        error: (err) => {
+            alert("❌ CSV 解析失敗: " + err.message);
+        }
+    });
+    event.target.value = ""; // 清空以便重複觸發
+};
 
-                // 📤 CSV 匯出邏輯 (帶有時間戳記的下載)
-                const handleExportCSV = () => {
-                    let csvContent = "\uFEFFid,name,subName,content,remark\n"; // \uFEFF 確保 Excel 開啟不亂碼
-                    rawItems.value.forEach(item => {
-                        csvContent += `${item.id},${item.name},${item.subName},${item.content},${item.remark}\n`;
-                    });
+// 📤 升級版：CSV 匯出邏輯 (自動幫有安全疑慮的文字加上引號)
+const handleExportCSV = () => {
+    // 使用 Papa.unparse 自動處理內含引號、逗號或換行的文字欄位
+    const csvString = Papa.unparse(rawItems.value, {
+        columns: ["id", "name", "subName", "content", "remark"]
+    });
+    
+    // \uFEFF 是標記 UTF-8 的 BOM 頭，能確保 Windows Excel 開啟時絕對不會變亂碼
+    const blob = new Blob(["\uFEFF" + csvString], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    
+    const now = new Date();
+    const timeStamp = now.getFullYear() + 
+                      String(now.getMonth() + 1).padStart(2, '0') + 
+                      String(now.getDate()).padStart(2, '0');
+    
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `SOP_Backup_${timeStamp}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
 
-                    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-                    const url = URL.createObjectURL(blob);
-                    
-                    // 產生時間戳記檔名
-                    const now = new Date();
-                    const timeStamp = now.getFullYear() + 
-                                      String(now.getMonth() + 1).padStart(2, '0') + 
-                                      String(now.getDate()).padStart(2, '0');
-                    
-                    const link = document.createElement("a");
-                    link.setAttribute("href", url);
-                    link.setAttribute("download", `SOP_Backup_${timeStamp}.csv`);
-                    link.style.visibility = 'hidden';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                };
 
                 return {
                     rawItems, keyword, isFormVisible, editingId, form, displayNodes,
