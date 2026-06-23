@@ -37,10 +37,10 @@
                 {{ editingId ? '🔄 編輯' : '💾 新增' }}
             </h2>
             <div class="grid grid-cols-2 gap-3">
-                <input type="text" v-model="form.name" placeholder="大分類 (如: 電工維修) *" class="p-2 border rounded text-sm">
-                <input type="text" v-model="form.subName" placeholder="小分類 (如: 常用工具) *" class="p-2 border rounded text-sm">
-                <input type="text" v-model="form.content" placeholder="詳細內容 *" class="p-2 border rounded text-sm col-span-2">
-                <input type="text" v-model="form.remark" placeholder="備註" class="p-2 border rounded text-sm col-span-2">
+                <input type="text" v-model="form.name" placeholder="主項目 (保管人) *" class="p-2 border rounded text-sm">
+                <input type="text" v-model="form.subName" placeholder="次項目 (儀器工具) *" class="p-2 border rounded text-sm">
+                <input type="text" v-model="form.content" placeholder="內容（編號、名稱）*" class="p-2 border rounded text-sm col-span-2">
+                <input type="text" v-model="form.remark" placeholder="備註（數值範圍、允收標準）*" class="p-2 border rounded text-sm col-span-2">
             </div>
             <div class="flex justify-end gap-2 mt-4">
                 <button @click="clearForm" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-1.5 rounded text-sm">清空</button>
