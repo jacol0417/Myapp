@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SOP 樹狀備忘錄 Web</title>
+    <title>備忘錄 Web</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 </head>
@@ -12,14 +12,14 @@
     <div id="app" class="max-w-2xl mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6">
         
         <div class="flex flex-wrap justify-between items-center gap-4 mb-6 border-b pb-4">
-            <h1 class="text-2xl font-bold text-blue-600">📋 SOP 備忘錄 (跨平台版)</h1>
+            <h1 class="text-2xl font-bold text-blue-600">📋 備忘錄 (跨平台版)</h1>
             <div class="flex gap-2">
                 <label class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm cursor-pointer shadow">
-                    📥 匯入 CSV
+                    📥 匯入CSV
                     <input type="file" accept=".csv" class="hidden" @change="handleImportCSV">
                 </label>
                 <button @click="handleExportCSV" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm cursor-pointer shadow">
-                    📤 匯出 CSV
+                    📤 匯出CSV
                 </button>
             </div>
         </div>
@@ -28,13 +28,13 @@
             <input type="text" v-model="keyword" placeholder="🔍 輸入關鍵字搜尋..." 
                    class="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
             <button @click="isFormVisible = !isFormVisible" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm transition shadow">
-                {{ isFormVisible ? '🙈 隱藏表單' : '✏️ 開啟表單' }}
+                {{ isFormVisible ? '🙈 隱藏' : '✏️ 開啟' }}
             </button>
         </div>
 
         <div v-show="isFormVisible" class="bg-gray-50 p-4 rounded-xl mb-6 border transition-all">
             <h2 class="text-lg font-semibold mb-3 text-gray-700">
-                {{ editingId ? '🔄 編輯項目' : '💾 新增 SOP 項目' }}
+                {{ editingId ? '🔄 編輯' : '💾 新增' }}
             </h2>
             <div class="grid grid-cols-2 gap-3">
                 <input type="text" v-model="form.name" placeholder="大分類 (如: 電工維修) *" class="p-2 border rounded text-sm">
