@@ -123,8 +123,20 @@
                         item.remark.toLowerCase().includes(kw)
                     );
 
-                    // 2. 排序
-                    filtered.sort((a, b) => a.name.localeCompare(b.name) || a.subName.localeCompare(b.subName) || a.content.localeCompare(b.content));
+                    // 2. 排序：核心改為「字數由少到多」優先
+                    filtered.sort((a, b) => {
+                    // 【第一層】比較大分類 (name) 的字數長度
+                    return (a.name.length - b.name.length) || 
+                    a.name.localeCompare(b.name) || // 若字數相同，按文字順序排，防止分類碎掉
+           
+                   // 【第二層】比較小分類 (subName) 的字數長度
+                    (a.subName.length - b.subName.length) || 
+                   a.subName.localeCompare(b.subName) ||
+           
+                   // 【第三層】比較詳細內容 (content) 的字數長度
+                   (a.content.length - b.content.length) || 
+                   a.content.localeCompare(b.content);
+                    });
 
                     // 3. 組裝 Master Nodes
                     const masterNodes = [];
