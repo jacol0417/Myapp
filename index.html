@@ -7,6 +7,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- 引入 JsBarcode 用於產生 CODE-128 條碼 -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen p-4 text-gray-800">
 
@@ -63,10 +65,17 @@
                      'pl-16 text-gray-600 bg-blue-50/20': node.level === 2
                  }">
                 
-                <div class="text-sm">
+                <div class="text-sm flex flex-col items-start gap-1">
                     <span v-if="node.type === 0">{{ node.isExpanded ? '▼ 📁' : '▶ 📁' }} {{ node.text }}</span>
                     <span v-else-if="node.type === 1">{{ node.isExpanded ? '▼ 📂' : '▶ 📂' }} {{ node.text }}</span>
-                    <span v-else>🔹 {{ node.text }} <span class="text-xs text-gray-400 ml-2" v-if="node.remark">[{{ node.remark }}]</span></span>
+                    <template v-else>
+                        <div>
+                            🔹 {{ node.text }} 
+                            <span class="text-xs text-gray-400 ml-2" v-if="node.remark">[{{ node.remark }}]</span>
+                        </div>
+                        <!-- CODE-128 條碼顯示區塊 -->
+                        <svg :id="'barcode-' + node.dbId" class="mt-1"></svg>
+                    </template>
                 </div>
 
                 <button v-if="node.type === 2" @click.stop="handleDelete(node.dbId)" 
@@ -79,11 +88,10 @@
     </div>
 
     <script>
-        const { createApp, ref, computed, watch, onMounted } = Vue;
+        const { createApp, ref, computed, watch, onMounted, nextTick } = Vue;
 
         createApp({
             setup() {
-                // 資料來源：優先從瀏覽器本地暫存取，沒有就放預設測試資料
                 const rawItems = ref([]);
                 const keyword = ref("");
                 const isFormVisible = ref(true);
@@ -92,29 +100,45 @@
 
                 const form = ref({ name: "", subName: "", content: "", remark: "" });
 
-                // 讀取快取
+                // 產生 CODE-128 條碼的函式
+                const renderBarcodes = () => {
+                    nextTick(() => {
+                        displayNodes.value.forEach(node => {
+                            if (node.type === 2 && node.text) {
+                                try {
+                                    JsBarcode(`#barcode-${node.dbId}`, node.text, {
+                                        format: "CODE128",
+                                        width: 1.5,
+                                        height: 35,
+                                        displayValue: false, // 是否要在條碼下方顯示文字（依需求開關）
+                                        margin: 0
+                                    });
+                                } catch (e) {
+                                    console.warn(`條碼產生失敗 (${node.text}):`, e);
+                                }
+                            }
+                        });
+                    });
+                };
+
                 onMounted(() => {
                     const localData = localStorage.getItem("sop_web_data");
                     if (localData) {
                         rawItems.value = JSON.parse(localData);
                     } else {
-                        // 預設測試資料
                         rawItems.value = [
-                            { id: 1, name: "電工維修", subName: "常用工具", content: "螺絲起子", remark: "工具" },
-                            { id: 2, name: "電工維修", subName: "常用工具", content: "三用電錶", remark: "儀器" },
-                            { id: 3, name: "軟體開發", subName: "Git指令", content: "git commit -m", remark: "基礎" }
+                            { id: 1, name: "電工維修", subName: "常用工具", content: "TOOL-001", remark: "螺絲起子" },
+                            { id: 2, name: "電工維修", subName: "常用工具", content: "METER-002", remark: "三用電錶" },
+                            { id: 3, name: "軟體開發", subName: "Git指令", content: "GIT-COMMIT", remark: "基礎" }
                         ];
                     }
                 });
 
-                // 監聽資料變化，自動存入本地瀏覽器防掉檔
                 watch(rawItems, (newVal) => {
                     localStorage.setItem("sop_web_data", JSON.stringify(newVal));
                 }, { deep: true });
 
-                // 核心邏輯：將扁平資料動態組合為樹狀結構 (完全對應 Android 的演算法)
                 const displayNodes = computed(() => {
-                    // 1. 過濾搜尋關鍵字
                     const kw = keyword.value.trim().toLowerCase();
                     const filtered = rawItems.value.filter(item => 
                         item.name.toLowerCase().includes(kw) ||
@@ -123,22 +147,15 @@
                         item.remark.toLowerCase().includes(kw)
                     );
 
-                    // 2. 排序：核心改為「字數由少到多」優先
                     filtered.sort((a, b) => {
-                    // 【第一層】比較大分類 (name) 的字數長度
-                    return (a.name.length - b.name.length) || 
-                    a.name.localeCompare(b.name) || // 若字數相同，按文字順序排，防止分類碎掉
-           
-                   // 【第二層】比較小分類 (subName) 的字數長度
-                    (a.subName.length - b.subName.length) || 
-                   a.subName.localeCompare(b.subName) ||
-           
-                   // 【第三層】比較詳細內容 (content) 的字數長度
-                   (a.content.length - b.content.length) || 
-                   a.content.localeCompare(b.content);
+                        return (a.name.length - b.name.length) || 
+                               a.name.localeCompare(b.name) || 
+                               (a.subName.length - b.subName.length) || 
+                               a.subName.localeCompare(b.subName) ||
+                               (a.content.length - b.content.length) || 
+                               a.content.localeCompare(b.content);
                     });
 
-                    // 3. 組裝 Master Nodes
                     const masterNodes = [];
                     const groupedByMain = {};
                     filtered.forEach(item => {
@@ -170,7 +187,6 @@
                         }
                     }
 
-                    // 4. 計算折疊展開展開後，真正要顯示出來的 displayNodes
                     const result = [];
                     function addVisibleChildren(parentKey) {
                         const children = masterNodes.filter(n => n.parentKey === parentKey);
@@ -185,25 +201,27 @@
                     return result;
                 });
 
-                // 點擊事件處理
+                // 當可見節點變化時，自動重新繪製條碼
+                watch(displayNodes, () => {
+                    renderBarcodes();
+                }, { immediate: true });
+
                 const handleNodeClick = (node) => {
                     if (node.type === 2) {
-                        // 點擊最內層 -> 載入表單進行編輯
                         editingId.value = node.dbId;
                         form.value = { ...node.rawItem };
                         isFormVisible.value = true;
                     } else {
-                        // 點擊目錄 -> 切換展開狀態
                         node.isExpanded = !node.isExpanded;
                         if (node.isExpanded) {
                             expandedKeys.value.add(node.uniqueKey);
                         } else {
                             expandedKeys.value.delete(node.uniqueKey);
                         }
+                        renderBarcodes();
                     }
                 };
 
-                // 儲存與更新
                 const handleSave = () => {
                     if (!form.value.name || !form.value.subName || !form.value.content) {
                         alert("⚠️ 前三個欄位為必填！");
@@ -211,18 +229,15 @@
                     }
 
                     if (editingId.value === null) {
-                        // 新增
                         const newId = rawItems.value.length > 0 ? Math.max(...rawItems.value.map(i => i.id)) + 1 : 1;
                         rawItems.value.push({ id: newId, ...form.value });
                     } else {
-                        // 更新
                         const idx = rawItems.value.findIndex(i => i.id === editingId.value);
                         if (idx !== -1) rawItems.value[idx] = { id: editingId.value, ...form.value };
                     }
                     clearForm();
                 };
 
-                // 刪除
                 const handleDelete = (id) => {
                     if (confirm("確定要刪除這筆資料嗎？")) {
                         rawItems.value = rawItems.value.filter(item => item.id !== id);
@@ -235,70 +250,62 @@
                     form.value = { name: "", subName: "", content: "", remark: "" };
                 };
 
-// 📥 升級版：CSV 匯入邏輯 (完美相容 Excel 換行與特殊符號)
-const handleImportCSV = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
+                const handleImportCSV = (event) => {
+                    const file = event.target.files[0];
+                    if (!file) return;
 
-    // 使用 PapaParse 進行深度解析
-    Papa.parse(file, {
-        header: true,         // 自動將第一行欄位名稱 (id, name, subName...) 對應為物件 Key
-        skipEmptyLines: true, // 自動跳過空白行
-        dynamicTyping: true,  // 自動將 id 轉為數字數字型態
-        encoding: "UTF-8",
-        complete: (results) => {
-            const data = results.data;
-            
-            // 將資料標準化，確保欄位安全無缺
-            const verifiedItems = data.map((row, index) => ({
-                id: row.id || index + 1,
-                name: row.name ? String(row.name).trim() : "",
-                subName: row.subName ? String(row.subName).trim() : "",
-                content: row.content ? String(row.content).trim() : "",
-                remark: row.remark ? String(row.remark).trim() : ""
-            })).filter(item => item.name || item.subName || item.content); // 過濾掉完全空白的列
+                    Papa.parse(file, {
+                        header: true,
+                        skipEmptyLines: true,
+                        dynamicTyping: true,
+                        encoding: "UTF-8",
+                        complete: (results) => {
+                            const data = results.data;
+                            const verifiedItems = data.map((row, index) => ({
+                                id: row.id || index + 1,
+                                name: row.name ? String(row.name).trim() : "",
+                                subName: row.subName ? String(row.subName).trim() : "",
+                                content: row.content ? String(row.content).trim() : "",
+                                remark: row.remark ? String(row.remark).trim() : ""
+                            })).filter(item => item.name || item.subName || item.content);
 
-            if (verifiedItems.length > 0) {
-                if (confirm(`檢查到 ${verifiedItems.length} 筆資料，是否覆蓋現有資料庫？`)) {
-                    rawItems.value = verifiedItems;
-                    alert("📥 資料庫匯入成功！");
-                }
-            } else {
-                alert("❌ 找不到有效的資料結構，請確認 CSV 標頭欄位是否為: id, name, subName, content, remark");
-            }
-        },
-        error: (err) => {
-            alert("❌ CSV 解析失敗: " + err.message);
-        }
-    });
-    event.target.value = ""; // 清空以便重複觸發
-};
+                            if (verifiedItems.length > 0) {
+                                if (confirm(`檢查到 ${verifiedItems.length} 筆資料，是否覆蓋現有資料庫？`)) {
+                                    rawItems.value = verifiedItems;
+                                    alert("📥 資料庫匯入成功！");
+                                }
+                            } else {
+                                alert("❌ 找不到有效的資料結構，請確認 CSV 標頭欄位是否為: id, name, subName, content, remark");
+                            }
+                        },
+                        error: (err) => {
+                            alert("❌ CSV 解析失敗: " + err.message);
+                        }
+                    });
+                    event.target.value = "";
+                };
 
-// 📤 升級版：CSV 匯出邏輯 (自動幫有安全疑慮的文字加上引號)
-const handleExportCSV = () => {
-    // 使用 Papa.unparse 自動處理內含引號、逗號或換行的文字欄位
-    const csvString = Papa.unparse(rawItems.value, {
-        columns: ["id", "name", "subName", "content", "remark"]
-    });
-    
-    // \uFEFF 是標記 UTF-8 的 BOM 頭，能確保 Windows Excel 開啟時絕對不會變亂碼
-    const blob = new Blob(["\uFEFF" + csvString], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    
-    const now = new Date();
-    const timeStamp = now.getFullYear() + 
-                      String(now.getMonth() + 1).padStart(2, '0') + 
-                      String(now.getDate()).padStart(2, '0');
-    
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `ichi_Backup_${timeStamp}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-};
-
+                const handleExportCSV = () => {
+                    const csvString = Papa.unparse(rawItems.value, {
+                        columns: ["id", "name", "subName", "content", "remark"]
+                    });
+                    
+                    const blob = new Blob(["\uFEFF" + csvString], { type: "text/csv;charset=utf-8;" });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const now = new Date();
+                    const timeStamp = now.getFullYear() + 
+                                      String(now.getMonth() + 1).padStart(2, '0') + 
+                                      String(now.getDate()).padStart(2, '0');
+                    
+                    const link = document.createElement("a");
+                    link.setAttribute("href", url);
+                    link.setAttribute("download", `ichi_Backup_${timeStamp}.csv`);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                };
 
                 return {
                     rawItems, keyword, isFormVisible, editingId, form, displayNodes,
