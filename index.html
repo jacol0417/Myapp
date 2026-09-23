@@ -7,23 +7,25 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <!-- 引入 JsBarcode 用於產生 CODE-128 條碼 -->
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen p-4 text-gray-800">
 
-    <div class="flex flex-wrap justify-between items-center gap-4 mb-6 border-b pb-4">
-    <h1 class="text-2xl font-bold text-blue-600">📋 備忘錄 (跨平台版)</h1>
-    <div class="flex gap-2">
-        <label class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm cursor-pointer shadow">
-            📥 匯入CSV
-            <input type="file" accept=".csv" class="hidden" @change="handleImportCSV">
-        </label>
-        <button @click="handleExportCSV" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm cursor-pointer shadow">
-            📤 匯出CSV
-        </button>
-    </div>
-</div>
+    <div id="app" class="max-w-2xl mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6">
+        
+        <!-- 頂部列：強制的單一橫排 -->
+        <div class="flex justify-between items-center gap-4 mb-6 border-b pb-4">
+            <h1 class="text-2xl font-bold text-blue-600 whitespace-nowrap">📋 備忘錄 </h1>
+            <div class="flex gap-2 shrink-0">
+                <label class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm cursor-pointer shadow whitespace-nowrap">
+                    📥 匯入CSV
+                    <input type="file" accept=".csv" class="hidden" @change="handleImportCSV">
+                </label>
+                <button @click="handleExportCSV" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm cursor-pointer shadow whitespace-nowrap">
+                    📤 匯出CSV
+                </button>
+            </div>
+        </div>
 
         <div class="flex gap-3 mb-4">
             <input type="text" v-model="keyword" placeholder="🔍 輸入關鍵字搜尋..." 
@@ -71,7 +73,6 @@
                             🔹 {{ node.text }} 
                             <span class="text-xs text-gray-400 ml-2" v-if="node.remark">[{{ node.remark }}]</span>
                         </div>
-                        <!-- CODE-128 條碼顯示區塊 -->
                         <svg :id="'barcode-' + node.dbId" class="mt-1"></svg>
                     </template>
                 </div>
@@ -98,7 +99,6 @@
 
                 const form = ref({ name: "", subName: "", content: "", remark: "" });
 
-                // 產生 CODE-128 條碼的函式
                 const renderBarcodes = () => {
                     nextTick(() => {
                         displayNodes.value.forEach(node => {
@@ -108,11 +108,11 @@
                                         format: "CODE128",
                                         width: 1.5,
                                         height: 35,
-                                        displayValue: false, // 是否要在條碼下方顯示文字（依需求開關）
+                                        displayValue: false,
                                         margin: 0
                                     });
                                 } catch (e) {
-                                    console.warn(`條碼產生失敗 (${node.text}):`, e);
+                                    console.warn(`條碼繪製失敗 (${node.text}):`, e);
                                 }
                             }
                         });
@@ -199,7 +199,6 @@
                     return result;
                 });
 
-                // 當可見節點變化時，自動重新繪製條碼
                 watch(displayNodes, () => {
                     renderBarcodes();
                 }, { immediate: true });
