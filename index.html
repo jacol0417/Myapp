@@ -73,7 +73,7 @@
                             🔹 {{ node.text }} 
                             <span class="text-xs text-gray-400 ml-2" v-if="node.remark">[{{ node.remark }}]</span>
                         </div>
-                        <svg :id="'barcode-' + node.dbId" class="mt-1"></svg>
+                        <svg :id="'barcode-' + node.dbId" class="mt-1" v-show="node.hasBarcode"></svg>
                     </template>
                 </div>
 
@@ -100,24 +100,35 @@
                 const form = ref({ name: "", subName: "", content: "", remark: "" });
 
                 const renderBarcodes = () => {
-                    nextTick(() => {
-                        displayNodes.value.forEach(node => {
-                            if (node.type === 2 && node.text) {
-                                try {
-                                    JsBarcode(`#barcode-${node.dbId}`, node.text, {
-                                        format: "CODE128",
-                                        width: 1.5,
-                                        height: 35,
-                                        displayValue: false,
-                                        margin: 0
-                                    });
-                                } catch (e) {
-                                    console.warn(`條碼繪製失敗 (${node.text}):`, e);
-                                }
-                            }
+    nextTick(() => {
+        displayNodes.value.forEach(node => {
+            if (node.type === 2) {
+                const svgEl = document.getElementById(`barcode-${node.dbId}`);
+                // 檢查是否含有純 ASCII 字元（CODE128 僅支援 ASCII）
+                const isAscii = /^[\x00-\x7F]+$/.test(node.text || '');
+
+                if (node.text && isAscii && svgEl) {
+                    try {
+                        JsBarcode(svgEl, node.text, {
+                            format: "CODE128",
+                            width: 1.5,
+                            height: 35,
+                            displayValue: false,
+                            margin: 0
                         });
-                    });
-                };
+                        node.hasBarcode = true;
+                    } catch (e) {
+                        node.hasBarcode = false;
+                        if (svgEl) svgEl.innerHTML = '';
+                    }
+                } else {
+                    node.hasBarcode = false;
+                    if (svgEl) svgEl.innerHTML = '';
+                }
+            }
+        });
+    });
+};
 
                 onMounted(() => {
                     const localData = localStorage.getItem("sop_web_data");
