@@ -12,20 +12,18 @@
 </head>
 <body class="bg-gray-100 min-h-screen p-4 text-gray-800">
 
-    <div id="app" class="max-w-2xl mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6">
-        
-        <div class="flex flex-wrap justify-between items-center gap-4 mb-6 border-b pb-4">
-            <h1 class="text-2xl font-bold text-blue-600">📋 備忘錄 (跨平台版)</h1>
-            <div class="flex gap-2">
-                <label class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm cursor-pointer shadow">
-                    📥 匯入CSV
-                    <input type="file" accept=".csv" class="hidden" @change="handleImportCSV">
-                </label>
-                <button @click="handleExportCSV" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm cursor-pointer shadow">
-                    📤 匯出CSV
-                </button>
-            </div>
-        </div>
+    <div class="flex justify-between items-center gap-4 mb-6 border-b pb-4">
+    <h1 class="text-2xl font-bold text-blue-600 whitespace-nowrap">📋 備忘錄 </h1>
+    <div class="flex gap-2 shrink-0">
+        <label class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm cursor-pointer shadow whitespace-nowrap">
+            📥 匯入CSV
+            <input type="file" accept=".csv" class="hidden" @change="handleImportCSV">
+        </label>
+        <button @click="handleExportCSV" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm cursor-pointer shadow whitespace-nowrap">
+            📤 匯出CSV
+        </button>
+    </div>
+</div>
 
         <div class="flex gap-3 mb-4">
             <input type="text" v-model="keyword" placeholder="🔍 輸入關鍵字搜尋..." 
